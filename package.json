@@ -12,5 +12,5 @@
     "mongoose": "^5.8.9",
     "puppeteer": "^2.0.0"
   },
-  "repository": ""
+  "repository": "https://github.com/joaomisturini/insta-slides.git"
 }
