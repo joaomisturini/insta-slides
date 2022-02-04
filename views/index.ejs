@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Casamento</title>
+
+    <style type="text/css">
+        body {
+            margin: 0px;
+        }
+        .leaves {
+            position: fixed;
+            width: 245px;
+            z-index: 1;
+        }
+        .leaves-left {
+            top: -22px;
+            left: -25px;
+        }
+        .leaves-right {
+            bottom: -22px;
+            right: -25px;
+        }
+        .frame {
+            border-bottom: 30px solid #8DADA2;
+            border-right: 260px solid #8DADA2;
+            border-left: 260px solid #8DADA2;
+            border-top: 30px solid #8DADA2;
+            box-sizing: border-box;
+            overflow: hidden;
+            position: fixed;
+            height: 100%;
+            width: 100%;
+            left: 0;
+            top: 0;
+        }
+        .container {
+            justify-content: center;
+            align-items: center;
+            display: flex;
+            height: 100%;
+            width: 100%;
+        }
+        .container > div, .container > div > div {
+            height: 100%;
+            width: 100%;
+        }
+        .content {
+            transform: perspective(1px) translateX(-50%) translateY(-50%);
+            background-position: center;
+            background-size: cover;
+            position: relative;
+            min-height: 100%;
+            min-width: 100%;
+            left: 50%;
+            top: 50%;
+        }
+        .hidden {
+            display: none;
+        }
+        .fade-enter-active, .fade-leave-active {
+            transition: all 0.9s ease;
+            visibility: visible;
+            position: absolute;
+            overflow: hidden;
+            width: 100%;
+            opacity: 1;
+        }
+        .fade-enter, .fade-leave-to {
+            visibility: hidden;
+            width: 100%;
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <img src="/leaves-left.png" alt="leaves" class="leaves leaves-left" />
+
+    <div id="app" class="frame">
+        <div class="container" v-if="currentIndex !== null">
+            <transition-group name="fade" tag="div">
+                <div v-for="i in [currentIndex]" v-bind:key="i">
+                    <post-video v-if="currentPost.video"
+                        v-bind:url="currentPost.url"
+                        v-on:change-post="changePost"
+                    ></post-video>
+                    <post-image v-else
+                        v-bind:url="currentPost.url"
+                        v-on:change-post="changePost"
+                    ></post-image>
+                </div>
+            </transition-group>
+        </div>
+
+        <div v-for="post in posts" v-bind:key="post._id" class="hidden">
+            <img v-if="! post.video" v-bind:src="post.url" />
+        </div>
+    </div>
+
+    <img src="/leaves-right.png" alt="leaves" class="leaves leaves-right" />
+
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script type="text/javascript">
+        Vue.component('post-video', {
+            props: [ 'url' ],
+            methods: {
+                triggerChange: function () {
+                    this.$emit('change-post');
+                },
+            },
+            template: `
+                <video autoplay muted class="content"
+                    v-on:ended="triggerChange"
+                    v-bind:src="url"
+                ></video>
+            `,
+        });
+
+        Vue.component('post-image', {
+            props: [ 'url' ],
+            mounted: function () {
+                this.triggerChange();
+            },
+            updated: function () {
+                this.triggerChange();
+            },
+            methods: {
+                triggerChange: function () {
+                    setTimeout(() => {
+                        this.$emit('change-post');
+                    }, 1000 * 5);
+                },
+            },
+            template: `
+                <div class="content"
+                    v-bind:style="{ backgroundImage: 'url(' + url + ')' }"
+                ></div>
+            `,
+        });
+
+        const vm = new Vue({
+            el: '#app',
+            data: {
+                posts: [],
+                nextPosts: null,
+                currentIndex: null,
+                local: true,
+            },
+            mounted: function () {
+                this.getFirstPosts();
+            },
+            computed: {
+                currentPost: function () {
+                    return this.posts[
+                        Math.abs(this.currentIndex) % this.posts.length
+                    ];
+                },
+            },
+            methods: {
+                getFirstPosts: function () {
+                    this._getPosts(posts => {
+                        this.posts = posts;
+                        this.currentIndex = 0;
+                    });
+                },
+                getNextPosts: function () {
+                    this.local = ! this.local;
+
+                    this._getPosts(posts => {
+                        if (posts.length > 0) {
+                            this.nextPosts = posts;
+                            return;
+                        }
+
+                        this.nextPosts = this.posts;
+                        this.local = ! this.local;
+                    });
+                },
+                changePost: function () {
+                    if (this.currentIndex === this.posts.length - 1) {
+                        this.posts = this.nextPosts;
+                        this.currentIndex = 0;
+
+                        if (this.nextPosts.length === 1) {
+                            this.getNextPosts();
+                        }
+
+                        return;
+                    }
+
+                    if (this.currentIndex === this.posts.length - 2) {
+                        this.getNextPosts();
+                    }
+
+                    this.currentIndex = this.currentIndex + 1;
+                },
+                _getPosts: function (callback) {
+                    const local = Number(this.local);
+                    const url = `/posts?local=${ local }`;
+
+                    fetch(url).then(response => response.json()).then(callback);
+                },
+            },
+        });
+    </script>
+</body>
+</html>
